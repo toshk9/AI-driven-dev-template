@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "saoudrizwan.claude-dev",
+    "usernamehw.errorlens",
+    "editorconfig.editorconfig"
+    // Add per stack: "esbenp.prettier-vscode", "dbaeumer.vscode-eslint", "charliermarsh.ruff", "golang.go", "rust-lang.rust-analyzer"
+  ]
+}

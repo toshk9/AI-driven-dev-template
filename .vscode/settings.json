@@ -1,0 +1,26 @@
+{
+  // Cline's SEARCH/REPLACE edits break when a formatter rewrites the file after each write.
+  // Formatting is done on demand / in verify.sh instead.
+  "editor.formatOnSave": false,
+  "files.autoSave": "off",
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+
+  // Keep search and watchers away from heavy folders (less noise for the agent and VS Code).
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.venv/**": true,
+    "**/dist/**": true,
+    "**/target/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.venv": true,
+    "memory-bank/repo-map.md": true
+  },
+
+  // Cline sees editor diagnostics; make them visible and immediate.
+  "problems.decorations.enabled": true
+}
