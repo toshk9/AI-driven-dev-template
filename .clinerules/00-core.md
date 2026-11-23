@@ -1,7 +1,7 @@
 # Core rules for Qwen3.6-35B. Read fully and obey strictly.
 
 ## Language
-- Talk to the user in Russian (or English if requested).
+- Talk to the user in English.
 - Code, identifiers, code comments, commit messages, and docs: English.
 
 ## MCP & Serena Integration (PRIMARY TOOLS)
