@@ -9,6 +9,10 @@
 - **Code Editing:** Prefer Serena LSP tools (`replace_symbol_body`, `insert_after_symbol`, `replace_lines`) for structure-aware edits. Fall back to `replace_in_file` only if Serena LSP does not support the target file type.
 - **Session Start:** On the first tool call of a task, run `serena:initial_instructions` to activate project context.
 
+# MEMORY FILES vs MCP MEMORY
+- DO NOT use Serena `write_memory` tool for project context.
+- ALWAYS use `write_to_file` or `replace_in_file` directly on `memory-bank/activeContext.md` and `docs/plan.md`.
+
 ## Gate 0: New Product Intake
 - If `memory-bank/projectbrief.md` contains placeholders (e.g., `<one sentence>`), DO NOT write code. Execute `/spec.md` first.
 
