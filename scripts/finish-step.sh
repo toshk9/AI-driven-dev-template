@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The ONLY way to finish a unit of work. One command:
-#   memory gates -> scope/test gates -> verify -> tick plan -> rewrite activeContext -> commit.
+#   memory gates -> scope/test gates -> verify -> tick plan -> rewrite activeContext -> commit -> repo-map.
 # Usage: bash scripts/finish-step.sh <STEP_ID|FIX|WIP> "<type: summary>" "<next action>" ["<gotcha>"]
 #   STEP_ID  a step id from docs/plan.md, e.g. S03
 #   FIX      a bug fix outside the plan
@@ -33,11 +33,23 @@ if [ "$id" != WIP ]; then
     fi
   done
   changed="$(git status --porcelain -uall | sed -E 's/^.{3}//; s/.* -> //')"
-  if printf '%s\n' "$changed" | grep -Eq '(^|/)(requirements[^/]*\.txt|pyproject\.toml|package\.json|go\.mod|Cargo\.toml)$'; then
+  changed_manifests="$(printf '%s\n' "$changed" | grep -E '(^|/)(requirements[^/]*\.txt|pyproject\.toml|package\.json|go\.mod|Cargo\.toml)$' || true)"
+  if [ -n "$changed_manifests" ]; then
     printf '%s\n' "$changed" | grep -qx 'memory-bank/techContext.md' ||
       fail "a dependency manifest changed but memory-bank/techContext.md did not. Rewrite techContext.md with write_to_file (stack, entry points, dependencies, max 30 lines), then run this command again."
-    printf '%s\n' "$changed" | grep -qx 'docs/decisions.md' ||
-      fail "a dependency manifest changed but docs/decisions.md did not. Record why: bash scripts/decide.sh \"add <package>\" <stated|assumed> \"<reason>\", then run this command again."
+    need_decide=0
+    if ! grep -qE '^D-[0-9]+ \|' docs/decisions.md 2>/dev/null; then
+      need_decide=1
+    else
+      while IFS= read -r mf; do
+        [ -n "$mf" ] || continue
+        if git ls-files --error-unmatch "$mf" >/dev/null 2>&1; then need_decide=1; fi
+      done <<< "$changed_manifests"
+    fi
+    if [ "$need_decide" = 1 ]; then
+      printf '%s\n' "$changed" | grep -qx 'docs/decisions.md' ||
+        fail "an existing dependency manifest changed (or no decisions recorded) without updating docs/decisions.md. Record why: bash scripts/decide.sh \"add <package>\" <stated|assumed> \"<reason>\", then run this command again."
+    fi
   fi
 
   # ---------- 2. step line and its allowed files
@@ -47,7 +59,7 @@ if [ "$id" != WIP ]; then
     if [ -z "$line" ]; then
       fail "step '$id' is not in $plan. Unchecked steps: $(grep -oE '^- \[ \] S[0-9]+' "$plan" | sed 's/- \[ \] //' | tr '\n' ' ')"
     fi
-    allowed="$(printf '%s\n' "$line" | awk -F'|' '{print $3}' | tr ',' '\n' | sed -E 's/\([^)]*\)//g; s/^[[:space:]]+//; s/[[:space:]]+$//' | grep -E '[./]' || true)"
+    allowed="$(printf '%s\n' "$line" | awk -F'|' '{print $3}' | tr ',' '\n' | sed -E 's/\([^)]*\)//g; s/[`"'\'']//g; s/^[[:space:]]+//; s/[[:space:]]+$//' | grep -E '[./]' || true)"
   fi
 
   # ---------- 3. what did this step actually change?
@@ -63,7 +75,7 @@ if [ "$id" != WIP ]; then
     [ "$is_test" = 1 ] && testchanged=1
     [ "$is_code" = 1 ] && [ "$is_test" = 0 ] && srcchanged=1
     case "$f" in
-      *.md|docs/*|.clinerules/*|.vscode/*|requirements*.txt|pyproject.toml|package.json|package-lock.json|pnpm-lock.yaml|yarn.lock|go.mod|go.sum|Cargo.toml|Cargo.lock|__init__.py|*/__init__.py|conftest.py|*/conftest.py|pytest.ini|setup.cfg|.editorconfig|.env.example|scripts/verify.local.sh|scripts/gates.conf|.structure-ignore) continue;;
+      *.md|docs/*|.clinerules/*|.vscode/*|requirements*.txt|pyproject.toml|package.json|package-lock.json|pnpm-lock.yaml|yarn.lock|go.mod|go.sum|Cargo.toml|Cargo.lock|__init__.py|*/__init__.py|conftest.py|*/conftest.py|pytest.ini|setup.cfg|ruff.toml|.ruff.toml|mypy.ini|.editorconfig|.env.example|scripts/verify.local.sh|scripts/smoke.sh|scripts/gates.conf|.structure-ignore) continue;;
     esac
     [ -z "$allowed" ] && continue
     base="${f##*/}"; stem="${base%.*}"; tstem="${stem#test_}"; tstem="${tstem%_test}"; tstem="${tstem%.test}"; tstem="${tstem%.spec}"
@@ -100,20 +112,29 @@ if [ "$id" != WIP ]; then
   fi
 fi
 
-# ---------- 6. activeContext (script-owned; keeps Goal and the last 8 gotchas)
+# ---------- 6. activeContext (script-owned; keeps Goal, recent commits, and last 8 gotchas)
 mkdir -p memory-bank
 goal="$(grep -m1 '^- Goal:' "$ctx" 2>/dev/null || true)"
 old="$(sed -n '/^## Gotchas/,$p' "$ctx" 2>/dev/null | tail -n +2 | grep -v '^[[:space:]]*$' || true)"
 nextstep="$(grep -m1 -E '^- \[ \] ' "$plan" 2>/dev/null | cut -c1-200 || true)"
-remaining="$(grep -cE '^- \[ \] ' "$plan" 2>/dev/null || true)"
+done_cnt="$(grep -cE '^- \[x\] ' "$plan" 2>/dev/null || true)"
+rem_cnt="$(grep -cE '^- \[ \] ' "$plan" 2>/dev/null || true)"
+tot_cnt=$(( ${done_cnt:-0} + ${rem_cnt:-0} ))
+recent_commits="$(git log -n 3 --oneline 2>/dev/null || true)"
 {
   echo "STATE: ACTIVE"
   echo "# Active context (rewritten by scripts/finish-step.sh; read it FIRST in every task)"
   echo
   echo "${goal:-- Goal: (see memory-bank/projectbrief.md)}"
+  echo "- Progress: ${done_cnt:-0}/${tot_cnt} steps"
   echo "- Last finished: $id | $msg | $(date +%F)"
   echo "- Next plan step: $(printf %s "${nextstep:-none (plan complete)}" | sed 's/^- \[ \] //')"
   echo "- Next action: $next"
+  if [ -n "$recent_commits" ]; then
+    echo
+    echo "## Recent commits"
+    printf '%s\n' "$recent_commits" | sed 's/^/- /'
+  fi
   echo
   echo "## Gotchas"
   { [ -n "$old" ] && printf '%s\n' "$old"; [ -n "$gotcha" ] && echo "- $gotcha"; } | tail -n 8
@@ -125,6 +146,7 @@ branch="$(git symbolic-ref --short -q HEAD || true)"
 case "$branch" in
   main|master|"") git checkout -q -b ai/work 2>/dev/null || git checkout -q ai/work || fail "cannot switch to branch ai/work";;
 esac
+bash scripts/repo-map.sh >/dev/null 2>&1 || true
 git add -A
 if git diff --cached --quiet; then
   echo "git: nothing to commit"
@@ -135,9 +157,12 @@ fi
 
 if [ "$id" = WIP ]; then echo "WIP SAVED: state is in memory-bank/activeContext.md. Open a new task and continue."; exit 0; fi
 echo "STEP DONE: $id"
-if [ "${remaining:-0}" -eq 0 ]; then
-  echo "PLAN COMPLETE: every step is done. Now call attempt_completion; its first line must be the STEP DONE line above."
+if [ "${rem_cnt:-0}" -eq 0 ]; then
+  if [ ! -f scripts/smoke.sh ] && [ -d src ]; then
+    echo "NOTE: no scripts/smoke.sh found. Confirm the real entrypoint runs cleanly end-to-end before calling attempt_completion."
+  fi
+  echo "PLAN COMPLETE: every step is done. Confirm all acceptance criteria and smoke checks pass, then call attempt_completion (first line = STEP DONE: $id)."
 else
-  echo "REMAINING: $remaining step(s). NEXT: $nextstep"
+  echo "REMAINING: $rem_cnt step(s). NEXT: $nextstep"
   echo "Do ONLY that step next (its listed files, its test). Continue unless the user asked for a single step."
 fi

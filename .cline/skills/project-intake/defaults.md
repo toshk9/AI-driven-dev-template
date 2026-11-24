@@ -1,43 +1,45 @@
-# Defaults catalog (decide these yourself; tag [assumed]; read only the relevant sections)
+# Defaults catalog (decide these yourself; tag [assumed]; read only relevant sections)
 
 ## Universal
-- Layout: `src/<package>/` for source, `tests/` mirroring it, `docs/` for spec/plan/decisions, `scripts/` for tooling.
-- Config: environment variables with a typed settings object; commit `.env.example`, never `.env`. No secrets in code.
-- Logging: the language's standard logger, no bare `print` outside CLI output. Errors raised or returned explicitly at boundaries; no silent `except`/`catch`.
-- Tests: one test per acceptance criterion at minimum; separate pure logic from I/O so logic is testable without UI, network, or disk.
-- Git: `.gitignore` for the stack, small commits, conventional prefixes (`feat:`, `fix:`, `test:`, `chore:`).
-- Docs: README with run, test, and build commands that really work.
-- Dependencies: fewest possible; prefer the standard library when it is enough; pin versions via the lock file.
+- Layout: `src/<package>/` + `tests/`, `docs/` (`spec.md`, `plan.md`, `decisions.md`), `scripts/` (`smoke.sh` + gate scripts). Split `src/<pkg>/` into sub-packages (`domain/`, `adapters/`, `api/`, `agents/`, `tools/`) once >= ~6 modules or distinct layers exist.
+- Config: typed settings loaded from env vars (`pydantic-settings` or `dataclasses` + `os.environ`); commit `.env.example`, never `.env` or secrets.
+- Logging: stdlib `logging` (structured key=value or JSON for services/MAS), no bare `print` outside CLI output. Raise/return explicit errors at boundaries; no silent `except`.
+- Tests: unit tests per module + at least one non-mocked wiring/integration test + `scripts/smoke.sh` running the real entrypoint (`verify.sh` calls it automatically).
+- Dependencies: fewest possible; prefer stdlib where sufficient; pin versions in `pyproject.toml` / lockfile.
 
 ## Python
-- Version 3.12+. Always a project-local `.venv` (created by `scripts/setup-env.sh python`) and every command through `bash scripts/py.sh`. Plain `venv` + `pip`; metadata in `pyproject.toml`.
-- Lint/format: `ruff`. Tests: `pytest`. Types: type hints everywhere; `mypy` only for M/L.
-- Entry point: `python -m <package>`. Models: `dataclasses` (or `pydantic` for validated external input).
-- Web service default: FastAPI. CLI default: `argparse` (stdlib) for small, `typer` for many commands.
-- Games: pure game-state module (no rendering imports), separate renderer/input module, fixed-timestep update. Default UI when the user did not choose: ask (BLOCKER-lite): pygame (best feel, extra dependency), tkinter (stdlib, simple), terminal/curses (no GUI).
+- Version 3.12+. Project-local `.venv` via `scripts/setup-env.sh python`; all commands via `bash scripts/py.sh`. Metadata in `pyproject.toml`.
+- Lint/format: `ruff`. Tests: `pytest`. Type hints on all public functions/models; `mypy` for M/L projects.
+- Entry point: `python -m <package>` (`src/<package>/__main__.py`). Models: `dataclasses` (pure domain) or `pydantic` v2 (validated external I/O).
+- CLI default: `argparse` (stdlib) for 1–2 commands, `typer` for multi-command CLIs.
+
+## Web Services / Microservices / APIs
+- Framework default: `FastAPI` + `uvicorn` + `pydantic` v2 (or `litestar` if requested).
+- Endpoints: always expose `GET /health` (liveness) and `GET /ready` (readiness when DB/external deps exist). Use FastAPI `lifespan` for startup/shutdown.
+- Errors & validation: validate all payloads at boundary with Pydantic; return consistent JSON error shape; never leak stack traces to clients; CORS closed by default.
+- Testing: `fastapi.testclient.TestClient` / `httpx.AsyncClient` integration tests + `scripts/smoke.sh` hitting `/health`.
+
+## Multi-Agent Systems (MAS) & LLM Workflows
+- Load `.cline/skills/mas-architecture/SKILL.md` for full checklist.
+- Defaults: explicit state model + `pydantic` tool/output schemas; `prompts/` separate from logic; `llm/` client behind a narrow protocol/interface so tests run deterministically offline with a fake LLM; hard `max_steps` / token / timeout guards on every agent loop; structured trace logging (`run_id`, `step`, `agent`, `tool`).
+
+## Games / Desktop GUI
+- Default library: `pygame` (or `pygame-ce`) for 2D arcade/action games (predictable API, top-left origin, easy `SDL_VIDEODRIVER=dummy` smoke tests); `tkinter` (stdlib) for simple desktop utilities. Use `arcade` only if the user asks for it, and ALWAYS verify installed version (`2.x` vs `3.x`) + `context7` first.
+- Physics & rendering: pure state/physics module (zero UI imports), explicit `config.py` units (`PX_PER_SEC`, `GRAVITY_PX_PER_SEC2`), fixed/clamped `delta_time` in seconds, and documented coordinate origin (`y-down` vs `y-up`).
+- Visuals: if no external image/sound assets exist, build layered vector/procedural shapes or generated surfaces + readable HUD/score/state overlays (avoid bare ugly single-color boxes unless prototyping), and verify headless frame stepping in `scripts/smoke.sh`.
 
 ## TypeScript / Node
-- Node LTS, `pnpm` if the lockfile says so, `strict: true`, ESLint + Prettier, Vitest (or Jest if already present).
-- Web UI default: Vite + React for SPAs; Next.js only when SSR/SEO is requested.
+- Node LTS, `pnpm` when lockfile present, `strict: true`, ESLint + Prettier, Vitest (or Jest if present).
+- Web UI: Vite + React for SPAs; Next.js only when SSR/SEO is needed.
 
 ## Persistence
-- No persistence needed: do not add a database.
-- Single user, local data: SQLite (stdlib in Python). Multi-user or deployed service: PostgreSQL. Migrations via the stack's standard tool.
-- Access through a repository/storage module so tests can use an in-memory fake.
+- Stateless app: no DB. Single-user local state: SQLite (`sqlite3` stdlib). Multi-user / deployed service: PostgreSQL + migrations (`alembic`).
+- Wrap persistence behind a repository/storage interface so unit tests use an in-memory fake while integration tests exercise real SQL.
 
-## Docker (when requested)
-- Multi-stage build; slim pinned base image tag (no `latest`); run as a non-root user; `.dockerignore` mirroring `.gitignore`.
-- Dependencies installed before copying source to use layer cache; `HEALTHCHECK` for services.
-- `docker-compose.yml` only when more than one service (app + DB). Config via env vars, no secrets baked into the image.
-
-## Web/API
-- Validate all input at the boundary; consistent error format; no stack traces to clients; CORS closed by default.
-- Auth only if the user wants accounts; then use a vetted library, hashed passwords, no home-made crypto.
+## Docker & Deployment (when requested)
+- Load `.cline/skills/docker-deploy/SKILL.md`. Multi-stage build, pinned slim base tag (no `latest`), non-root user, `.dockerignore`, `HEALTHCHECK`, `compose.yml` only for multi-service stacks.
 
 ## Audience
-- Children: no accounts, no personal data collection, no analytics or ads, no external network calls unless required, large readable UI, no violence or dark patterns; mention this as a constraint in the spec.
-- Internal tool: favor simplicity, SSO/hardcoded auth acceptable if the user says so, minimal UI polish.
-- Public internet: input validation, rate limiting, dependency scanning, HTTPS terminated at the proxy, privacy basics.
-
-## Performance and polish (only if the user cares)
-- Do not optimize without a measured problem. Add a profiling step to the plan instead of guessing.
+- Children: no accounts, no PII, no analytics/ads, no unrequested external network calls, large readable UI, gentle feedback/no dark patterns.
+- Internal tool: prioritize clarity & reliability over visual polish.
+- Public internet: strict input validation, rate limiting, HTTPS at proxy, dependency/secret hygiene.

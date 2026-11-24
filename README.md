@@ -1,53 +1,49 @@
 # AI-driven dev template (Cline + local Qwen3.6-35B-A3B)
 
-Project skeleton that makes a small local model work like a disciplined engineer:
-small steps, tests first, one quality gate, and project memory that is enforced by scripts, not by hope.
+Project skeleton designed so a compact local model (Qwen3.6-35B-A3B-IQ3) works like a disciplined end-to-end engineer across Python services, Multi-Agent Systems (MAS), CLIs, Dockerized deployments, and GUI apps: adaptive intake, small vertical slices, unit + real integration/smoke tests, and script-enforced gates.
 
 ## How the memory works
 | File | Written by | Read when |
 |---|---|---|
-| `memory-bank/activeContext.md` (line 1: `STATE: NEW` or `STATE: ACTIVE`) | `scripts/intake-done.sh`, `scripts/finish-step.sh` | FIRST tool call of every task |
-| `memory-bank/projectbrief.md`, `.clinerules/10-stack.md`, `docs/plan.md` | the model (`write_to_file`) at intake | `10-stack.md` is auto-loaded; others at boot |
-| `memory-bank/techContext.md` | the model, at first finish and when dependencies change | when touching deps or entry points |
-| `docs/decisions.md` | `scripts/decide.sh` (required at intake, and whenever a dependency is added) | when choosing a library or architecture |
+| `memory-bank/activeContext.md` (`STATE: NEW` or `STATE: ACTIVE`) | `scripts/intake-done.sh`, `scripts/finish-step.sh` | FIRST tool call of every task & after compaction |
+| `memory-bank/projectbrief.md`, `.clinerules/10-stack.md`, `docs/plan.md` | the model (`write_to_file`) at intake | `10-stack.md` auto-loaded; others at boot |
+| `memory-bank/techContext.md` | the model, before first finish-step & on dep/entrypoint changes | when touching deps, entry points, or after compaction |
+| `memory-bank/repo-map.md` | `scripts/repo-map.sh` (auto-run by `intake-done.sh` & `finish-step.sh`) | when locating files/symbols or after compaction |
+| `docs/decisions.md` | `scripts/decide.sh` (at intake & on dep/architecture choices) | when choosing a library, layout, or contract |
 
-Placeholders are `{{...}}`. Scripts refuse to continue while any remain, so a skipped memory write shows up as an error message the model must act on.
+Placeholders are `{{...}}`. Scripts refuse to continue while any remain.
 
 ## Flow
 ```
-new project:  read activeContext (STATE: NEW) -> write brief, stack, plan -> scripts/intake-done.sh
-each step:    test first -> implement -> scripts/finish-step.sh S01 "feat: ..." "next action" ["gotcha"]
-              (verify -> tick plan -> rewrite activeContext -> commit on ai/work)
-long task:    scripts/finish-step.sh WIP ...  -> new task
+new project:  read activeContext (STATE: NEW) -> project-intake (+ /spec.md if M/L)
+              -> write brief, stack, plan, decide.sh -> scripts/intake-done.sh
+each step:    api-lookup (if new lib) -> test first -> implement -> verify.sh (includes smoke.sh)
+              -> scripts/finish-step.sh S01 "feat: ..." "next action" ["gotcha"]
+long task:    scripts/finish-step.sh WIP ... -> new task
 ```
-Workflows (type in Cline): `/spec.md` `/plan.md` `/step.md` `/fix.md` `/review.md` `/init.md` (existing repo) `/handoff.md` `/mcp-check.md`.
+Workflows: `/spec.md` `/plan.md` `/step.md` `/fix.md` `/review.md` `/init.md` `/handoff.md` `/mcp-check.md`.
+Skills (loaded on demand): `project-intake`, `api-lookup`, `test-first`, `debug-loop`, `smoke-verify`, `docker-deploy`, `mas-architecture`.
 
-## Gates (the scripts say no, the model has to fix it)
-| Gate | Where | Refuses when |
+## Gates (scripts fail loudly; the model must fix before continuing)
+| Gate | Where | Refuses / warns when |
 |---|---|---|
-| Placeholders | intake-done, finish-step | a memory file still has `{{...}}` |
-| Plan sanity | intake-done | files column has class names instead of paths, or one file is in most steps |
-| Decisions | intake-done, finish-step | no decision recorded; dependency manifest changed without a decision and `techContext.md` update |
-| Scope | finish-step | the step changed files not listed in its plan line (code of later steps) |
-| No work | finish-step | the step changed no project file (ticking steps one after another) |
-| Test | finish-step | source changed without a test change (`refactor:`, `docs:`, `chore:` are exempt) |
-| Structure | verify.sh | a source file over 250 lines, a test file over 300 |
+| Placeholders | `intake-done`, `finish-step` | memory files still contain `{{...}}` |
+| Plan sanity | `intake-done` | steps lack real file paths, one file dominates most steps, or no smoke/e2e step |
+| Decisions | `intake-done`, `finish-step` | no `D-n` decision recorded, or tracked manifest changed without `decide.sh` + `techContext.md` |
+| Scope | `finish-step` | step modified files outside its `docs/plan.md` line |
+| No work | `finish-step` | step changed no project files |
+| Test | `finish-step` | source changed without a test change (`refactor:`, `docs:`, `chore:` exempt) |
+| Structure & Hygiene | `check-structure.sh` | source > 250 lines, test > 300 lines, empty junk directories, or Dockerfile `:latest` / missing `USER` |
+| Compile & Smoke | `verify.sh` | Python `compileall` fails, lint/tests fail, or `scripts/smoke.sh` fails |
 
-Limits and modes (`fail` / `warn` / `off`) are in `scripts/gates.conf`; exceptions for the structure gate go to `.structure-ignore` (one `grep -E` pattern per line).
+Limits and modes (`fail` / `warn` / `off`) live in `scripts/gates.conf`; structure exceptions go in `.structure-ignore`.
 
 ## Context compaction
-Rules are re-sent with every request, so they survive auto-compact. The summary does not carry the project state reliably, so `00-core.md` tells the model to run BOOT again after any summary: read `activeContext.md`, `docs/plan.md`, `git status --short`. In Cline set Auto Compact to trigger early (around 55 to 65 percent of the window).
+`.clinerules/*.md` are re-sent every turn, and `00-core.md` instructs the model to re-run BOOT (`activeContext.md`, `plan.md`, `decisions.md`, `repo-map.md`, `git status --short`) whenever context begins with a `SUMMARY`. In Cline, set Auto Compact around 55–65%.
 
 ## Setup
-1. Requirements: Git for Windows (Git Bash) or any bash, Python 3.12+, Node (for context7), `uv` (for Serena).
-2. Set `git config user.name` / `user.email`.
-3. MCP: copy a server list from `mcp/` into Cline's MCP settings (Windows: use the `windows` variant). Run `/mcp-check.md`.
-4. Cline: Act mode for every workflow that writes files; auto-approve `bash scripts/*`.
-5. Start with a plain prompt, for example: `Write full working flappy bird game`.
-
-## Verify that memory works after a run
-```
-git log --stat -5     # every step commit must contain memory-bank/activeContext.md and docs/plan.md
-head -n 8 memory-bank/activeContext.md
-```
-A final `attempt_completion` message must start with the `STEP DONE: ...` line copied from the script.
+1. Requirements: Git for Windows (Git Bash) or POSIX bash, Python 3.12+, Node (`npx` for context7), `uv` (`uvx` for Serena).
+2. Configure `git config user.name` and `user.email`.
+3. MCP: copy a server list from `mcp/` into Cline's MCP settings (Windows: `cline_mcp_settings.windows.example.json`) and update `--project`. Run `/mcp-check.md`.
+4. Cline: Act mode for coding workflows; auto-approve `bash scripts/*`.
+5. Start with either a simple prompt (`"Сделай змейку на Python"`) or a detailed brief (`"Разработай сервис/MAS на Python по SOLID, с Docker..."`).

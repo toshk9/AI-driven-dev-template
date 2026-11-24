@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-command quality gate. Must print "VERIFY OK" at the end, or "VERIFY FAILED".
 # Autodetects common stacks. For anything custom, create scripts/verify.local.sh
-# (it fully replaces the autodetection).
+# (it fully replaces stack autodetection; structure and smoke checks still run).
 set -u
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
@@ -22,7 +22,6 @@ else
     pm=npm
     [ -f pnpm-lock.yaml ] && pm=pnpm
     [ -f yarn.lock ] && pm=yarn
-    # Safe JSON check for Windows bash
     has_script() {
       node -e "const p=require('./package.json'); process.exit((p.scripts && p.scripts['$1']) ? 0 : 1)" 2>/dev/null
     }
@@ -36,6 +35,9 @@ else
       echo "NO VENV: run 'bash scripts/setup-env.sh python' first"
       rc=1
     else
+      if [ -d src ]; then
+        run bash scripts/py.sh -m compileall -q src
+      fi
       if bash scripts/py.sh -m ruff --version >/dev/null 2>&1; then
         run bash scripts/py.sh -m ruff check .
       else
@@ -54,6 +56,10 @@ else
     run cargo clippy -q
     run cargo test -q
   fi
+fi
+
+if [ -f scripts/smoke.sh ]; then
+  run bash scripts/smoke.sh
 fi
 
 if [ "$rc" -eq 0 ]; then echo "VERIFY OK"; else echo "VERIFY FAILED"; fi

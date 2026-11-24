@@ -18,7 +18,7 @@ fi
 
 # ---- .gitignore (append only what is missing)
 touch .gitignore
-for l in ".venv/" "__pycache__/" "*.pyc" ".pytest_cache/" ".ruff_cache/" ".env" "node_modules/" "memory-bank/repo-map.md"; do
+for l in ".venv/" "__pycache__/" "*.pyc" "*.pyo" "*.egg-info/" "*.egg" "build/" "dist/" ".pytest_cache/" ".ruff_cache/" ".mypy_cache/" ".coverage" "htmlcov/" ".env" "node_modules/" "memory-bank/repo-map.md" ".DS_Store"; do
   grep -qxF "$l" .gitignore || echo "$l" >> .gitignore
 done
 

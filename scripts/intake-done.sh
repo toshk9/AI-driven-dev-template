@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Closes the INTAKE phase of a new project: checks the memory files are really filled and the plan is sane,
-# creates git repo + .venv, flips memory-bank/activeContext.md to STATE: ACTIVE, commits.
+# Closes the INTAKE phase of a new project: checks memory files and plan sanity,
+# creates git repo + .venv, sets memory-bank/activeContext.md to STATE: ACTIVE, commits, refreshes repo-map.
 # Usage: bash scripts/intake-done.sh "<one-line goal>" [python]
 set -u
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -32,7 +32,7 @@ if [ "$bad" -eq 0 ] && [ "$PLAN_GATE" != off ]; then
       n++; has = 0; split("", seen)
       k = split($3, a, ",")
       for (i = 1; i <= k; i++) {
-        t = a[i]; gsub(/\([^)]*\)/, "", t); gsub(/^[ \t]+|[ \t]+$/, "", t)
+        t = a[i]; gsub(/\([^)]*\)/, "", t); gsub(/[`'\''"]/, "", t); gsub(/^[ \t]+|[ \t]+$/, "", t)
         if (t ~ /[.\/]/ && !(t in seen)) { seen[t] = 1; cnt[t]++; has = 1 }
       }
       if (!has) nopath = nopath " " $1
@@ -50,6 +50,10 @@ if [ "$bad" -eq 0 ] && [ "$PLAN_GATE" != off ]; then
     msg="the file ${hot#HOT } is planned in most steps. That is a monolith. One module per responsibility (see .clinerules/12-architecture.md)."
     if [ "$PLAN_GATE" = warn ]; then echo "WARNING: $msg"; else echo "INTAKE NOT DONE: $msg Rewrite docs/plan.md with distinct files per step."; bad=1; fi
   fi
+  step_count="$(grep -cE '^- \[ \] S[0-9]+' docs/plan.md 2>/dev/null || echo 0)"
+  if [ "${step_count:-0}" -ge 3 ] && ! grep -qiE 'smoke|e2e|integration|entrypoint|end-to-end' docs/plan.md; then
+    echo "WARNING: docs/plan.md does not mention a smoke/integration/e2e check. Consider adding scripts/smoke.sh in S01 and an end-to-end verification step at the end."
+  fi
 fi
 [ "$bad" -eq 0 ] || exit 1
 
@@ -62,6 +66,7 @@ mkdir -p memory-bank
   echo "# Active context (rewritten by scripts/finish-step.sh; read it FIRST in every task)"
   echo
   echo "- Goal: $goal"
+  echo "- Progress: 0/$(grep -cE '^- \[ \] ' docs/plan.md 2>/dev/null || echo 0) steps"
   echo "- Last finished: intake | $(date +%F)"
   echo "- Next plan step: $(grep -m1 -E '^- \[ \] ' docs/plan.md | cut -c1-200 | sed 's/^- \[ \] //')"
   echo "- Next action: do ONLY the next plan step, then run scripts/finish-step.sh"
@@ -73,6 +78,7 @@ branch="$(git symbolic-ref --short -q HEAD || true)"
 case "$branch" in
   main|master|"") git checkout -q -b ai/work 2>/dev/null || git checkout -q ai/work || { echo "INTAKE NOT DONE: cannot switch to branch ai/work"; exit 1; };;
 esac
+bash scripts/repo-map.sh >/dev/null 2>&1 || true
 git add -A
 if ! git diff --cached --quiet; then
   SKIP_VERIFY=1 git commit -q -m "docs: project intake (brief, stack, plan)" || { echo "INTAKE NOT DONE: git commit failed (set user.name and user.email?)"; exit 1; }

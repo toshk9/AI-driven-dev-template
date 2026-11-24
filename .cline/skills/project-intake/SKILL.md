@@ -1,37 +1,39 @@
 ---
 name: project-intake
-description: Use at the start of a new product or when a request describes a whole app, game, service, or library, from either a one-line idea or a detailed brief. Triage what to ask the user versus decide by good practice, translate named principles like SOLID into checkable rules, and record decisions.
+description: Use at the start of a new product or when a request describes a whole app, game, MAS, web service, CLI, or library, from either a one-line idea or a detailed brief. Triage what to ask the user versus decide by good practice, translate named principles like SOLID into checkable rules, and record decisions.
 ---
 
 # project-intake
 
-## Triage: ask or decide?
-Ask the user (BLOCKER) only if ALL of these are true:
-- the answer changes the architecture, the stack, or the deliverable noticeably, AND
-- there is no widely accepted default, or a wrong guess costs a rewrite, AND
-- the answer cannot be inferred from the user's words or existing files.
+## 1. Triage: ask or decide?
+Ask the user (`BLOCKER`) ONLY if ALL three are true:
+- the answer changes the architecture, stack, or deliverable noticeably, AND
+- there is no widely accepted default (or a wrong guess requires a rewrite), AND
+- the answer cannot be inferred from the user's message or existing files.
 
-Typical BLOCKERs: what the product must actually do; language/platform when not stated; UI kind when a UI exists (terminal / desktop / web); where data lives when it must persist; deploy target when deployment is mentioned; legal-sensitive data (children, payments, health).
+Typical BLOCKERs:
+- Core product behavior when vague (e.g., game rules, main API endpoints, agent workflow goal).
+- Language/runtime or UI kind when not stated (CLI vs Web API vs Web UI vs Desktop GUI).
+- Persistence or external integrations when state/providers are unclear (local SQLite vs PostgreSQL; which LLM/API provider).
+- Deploy target when deployment is requested (single container vs multi-service Compose vs cloud target).
+- Sensitive/regulated domain rules (children, payments, PII/health, auth).
 
-Decide yourself (DEFAULT) for everything else: project layout, test framework, linter, logging, config handling, error style, naming, Dockerfile details, CI basics. Use `defaults.md` in this skill folder. Read it only for the areas the project touches.
+Decide yourself (`DEFAULT`, tag `[assumed]`) for everything else: directory layout, sub-packages, test framework, linter, logging, config loading, error style, naming, Dockerfile internals, CI basics. Read only the relevant sections of `defaults.md` in this skill folder.
 
-## Reading the user's message
-- Detailed brief: extract every stated item as [stated] and do NOT re-ask it. Usually 0 or 1 questions remain.
-- One-line idea: pick the best-practice defaults, ask at most 1 BLOCKER, and move on. A fast, reasonable build beats a long interview.
-- Named principles ("SOLID", "clean architecture", "TDD", "12-factor"): translate them into rules (below). Never just claim compliance.
-- Audience hints (children, internal team, public internet): apply the audience section of `defaults.md`.
+## 2. Reading the user's prompt
+- **Detailed brief:** extract every stated requirement as `[stated]` and NEVER re-ask it. Usually 0–2 BLOCKERs remain.
+- **One-line idea** (e.g., `"Make a Snake game in Python"`): apply best-practice defaults, ask at most 1 BLOCKER (e.g., GUI framework or missing core choice), and move on.
+- **Named principles** (`SOLID`, `clean/hexagonal`, `TDD`, `12-factor`): translate them into checkable rules in `.clinerules/15-principles.md` (max 30 lines). Always add an anti-over-engineering guard (create abstractions only when two implementations exist or a test needs a seam).
+- **Audience / compliance hints** (children, internal team, public internet): apply the Audience section of `defaults.md` and record constraints in `docs/spec.md` / `projectbrief.md`.
 
-## Translating principles into checkable rules (put in `.clinerules/15-principles.md`)
-Write 2–4 rules per principle, each verifiable by reading code. Keep the result under 30 lines. Examples:
-- SOLID, light version: one module has one reason to change; I/O (storage, clock, randomness, rendering, input) sits behind a small interface that tests can fake; dependencies are passed in via constructors, not created inside; prefer composition over inheritance.
-- Anti over-engineering guard (always add with SOLID): create an abstraction only when there are two implementations or a test needs a seam. No generic frameworks for a small app.
-- TDD: no production code without a failing test first (already enforced by `/step.md`).
-- 12-factor: config from environment, logs to stdout, stateless processes.
-- Clean/hexagonal: `domain/` has no imports from `infra/` or UI; direction of imports goes inward.
+## 3. Asking well (at most ONE `ask_followup_question` call)
+Put in the question text:
+1. One line restating the product goal.
+2. A compact table of your `[assumed]` defaults (so the user sees and can override them).
+3. The BLOCKER question(s) (1 for S, <= 3 for M, <= 5 for L).
+Options: `"Accept defaults (recommended)"` first, then 2–3 concrete alternatives with a brief tradeoff each.
 
-## Asking well
-One `ask_followup_question`. The text contains: (1) one line restating the product, (2) a compact table of the [assumed] defaults, (3) the BLOCKER question(s). Options: "Accept defaults" first, then concrete alternatives with a one-phrase tradeoff each.
-
-## Recording
-Add one line per decision to `docs/decisions.md`: `D-n | decision | stated/assumed | reason | revisit if`.
-Write memory files with `write_to_file` (whole file) and finish with `bash scripts/intake-done.sh`, which rejects files that still contain `{{...}}` placeholders. Keep `projectbrief.md` factual and short (max 20 lines). Mark assumptions with [assumed] so the user can find them later.
+## 4. Plan & Memory rules
+- Record stack, layout, and key `[assumed]` / `[stated]` choices via `bash scripts/decide.sh "<decision>" <stated|assumed> "<reason>"`.
+- `docs/plan.md`: `S01` MUST be a walking skeleton (thin entry point + passing test + `scripts/smoke.sh`). Final step MUST be an end-to-end integration & `scripts/smoke.sh` acceptance check across `AC-all`.
+- Write memory files whole (`write_to_file`), never leave `{{...}}` placeholders, and close with `bash scripts/intake-done.sh "<one-line goal>"`.
