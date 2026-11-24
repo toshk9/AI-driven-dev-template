@@ -1,6 +1,7 @@
-# /plan.md — break the spec into small steps (use Plan mode)
+# /plan.md — break the spec into small steps (ACT mode: writes docs only)
 
-Input: `docs/spec.md`. Output: `docs/plan.md`. No code in this workflow.
+Input: `docs/spec.md`. Output: `docs/plan.md`. No product code in this workflow.
+This workflow only rewrites `docs/plan.md` (whole file, `write_to_file`) after the spec changed. A new project is closed by `bash scripts/intake-done.sh` inside `/spec.md`.
 
 1. Read `docs/spec.md`, `.clinerules/10-stack.md`, and `memory-bank/repo-map.md` if present.
 2. Write `docs/plan.md` as a checklist. One line per step:

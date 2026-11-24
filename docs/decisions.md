@@ -1,5 +1,4 @@
-# Decisions log (written by /spec.md; one line each)
+# Decisions log (append ONLY with: bash scripts/decide.sh "<decision>" <stated|assumed> "<reason>")
 
-Format: `D-n | decision | stated or assumed | reason | revisit if`
-
-D-1 | <e.g. Python 3.12, uv, pytest, ruff> | assumed | standard modern Python tooling | the user prefers other tools
+Lines look like: `D-1 | decision | stated or assumed | reason`
+Record: the stack and layout, every new dependency, every architecture choice, every answer the user gave to a question.

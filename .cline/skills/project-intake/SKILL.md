@@ -34,4 +34,4 @@ One `ask_followup_question`. The text contains: (1) one line restating the produ
 
 ## Recording
 Add one line per decision to `docs/decisions.md`: `D-n | decision | stated/assumed | reason | revisit if`.
-Keep `projectbrief.md` and `techContext.md` factual and short (max 30 lines each). Mark assumptions with [assumed] so the user can find them later.
+Write memory files with `write_to_file` (whole file) and finish with `bash scripts/intake-done.sh`, which rejects files that still contain `{{...}}` placeholders. Keep `projectbrief.md` factual and short (max 20 lines). Mark assumptions with [assumed] so the user can find them later.

@@ -10,7 +10,7 @@
 - Dependencies: fewest possible; prefer the standard library when it is enough; pin versions via the lock file.
 
 ## Python
-- Version 3.12+. Tooling: `uv` if present, otherwise `venv` + `pip`; metadata in `pyproject.toml`.
+- Version 3.12+. Always a project-local `.venv` (created by `scripts/setup-env.sh python`) and every command through `bash scripts/py.sh`. Plain `venv` + `pip`; metadata in `pyproject.toml`.
 - Lint/format: `ruff`. Tests: `pytest`. Types: type hints everywhere; `mypy` only for M/L.
 - Entry point: `python -m <package>`. Models: `dataclasses` (or `pydantic` for validated external input).
 - Web service default: FastAPI. CLI default: `argparse` (stdlib) for small, `typer` for many commands.

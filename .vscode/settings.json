@@ -7,6 +7,9 @@
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
 
+  // Terminals open with .venv activated (for your own use; the agent goes through scripts/py.sh anyway).
+  "python.terminal.activateEnvironment": true,
+
   // Keep search and watchers away from heavy folders (less noise for the agent and VS Code).
   "files.watcherExclude": {
     "**/node_modules/**": true,

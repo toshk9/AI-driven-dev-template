@@ -1,19 +1,18 @@
-# Stack and commands
+# Stack and commands (written at intake by write_to_file; keep under 40 lines)
+# Rewrite the whole file with REAL values. This file is loaded into every request.
 
-- Language / runtime: Node.js 22 / TypeScript 5.x (или Python 3.12 / Bash)
-- Package manager: npm
-- Run dev: npm run dev
-- Run one test file: npx vitest run <path-to-test>
-- Run all tests: npm test
-- Lint / typecheck: npx tsc --noEmit && npx eslint .
-- Full gate: bash scripts/verify.sh
+- Language / runtime: {{FILL}}
+- Package manager: {{FILL}}
+- Run the app: {{FILL}}   (never run long-lived servers in the foreground)
+- Run one test file: {{FILL}}
+- Run all tests: {{FILL}}
+- Lint / typecheck: {{FILL}}
+- Full gate: `bash scripts/verify.sh`
 
 ## Layout
-- `src/` — Source code
-- `tests/` — Test files
-- `memory-bank/` — Project context and memory persistence
+- {{FILL: dir/ — what lives there}}
 
 ## Conventions
-- Naming: camelCase for variables/functions, PascalCase for classes/types.
-- Imports: Relative imports (`./` or `../`).
-- Tests: Located in `tests/` matching source structure.
+- Naming: {{FILL}}
+- Errors: {{FILL}}
+- Tests: {{FILL}}
