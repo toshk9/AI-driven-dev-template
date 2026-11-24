@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# One-command quality gate. Must output "VERIFY OK" at completion.
+# One-command quality gate. Must print "VERIFY OK" at the end, or "VERIFY FAILED".
+# Autodetects common stacks. For anything custom, create scripts/verify.local.sh
+# (it fully replaces the autodetection).
 set -u
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
@@ -18,20 +20,27 @@ else
     pm=npm
     [ -f pnpm-lock.yaml ] && pm=pnpm
     [ -f yarn.lock ] && pm=yarn
-
     # Safe JSON check for Windows bash
     has_script() {
       node -e "const p=require('./package.json'); process.exit((p.scripts && p.scripts['$1']) ? 0 : 1)" 2>/dev/null
     }
-
     has_script lint      && run "$pm" run lint
     has_script typecheck && run "$pm" run typecheck
     has_script test      && run "$pm" run test
   fi
 
-  if [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then
-    command -v ruff   >/dev/null 2>&1 && run ruff check .
-    command -v pytest >/dev/null 2>&1 && run pytest -q -x
+  if [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ] || [ -d .venv ]; then
+    if ! bash scripts/py.sh -c "pass" >/dev/null 2>&1; then
+      echo "NO VENV: run 'bash scripts/setup-env.sh python' first"
+      rc=1
+    else
+      if bash scripts/py.sh -m ruff --version >/dev/null 2>&1; then
+        run bash scripts/py.sh -m ruff check .
+      else
+        echo "warning: ruff is not installed in .venv, lint skipped"
+      fi
+      run bash scripts/py.sh -m pytest -q -x
+    fi
   fi
 
   if [ -f go.mod ]; then

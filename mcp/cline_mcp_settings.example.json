@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "disabled": false,
+      "autoApprove": ["resolve-library-id", "get-library-docs", "query-docs"]
+    },
+    "serena": {
+      "command": "uvx",
+      "args": [
+        "--from", "git+https://github.com/oraios/serena",
+        "serena", "start-mcp-server",
+        "--context", "ide-assistant",
+        "--project", "/ABS/PATH/TO/YOUR/PROJECT"
+      ],
+      "disabled": false,
+      "autoApprove": ["find_symbol", "find_referencing_symbols", "get_symbols_overview", "search_for_pattern", "list_dir", "find_file"]
+    }
+  }
+}
