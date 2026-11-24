@@ -3,10 +3,10 @@
 1. `read_file memory-bank/activeContext.md` (STATE must be ACTIVE; if it says NEW, do intake first) and `docs/plan.md`.
    Pick the first unchecked step, or the one the user named. Say which one in a single line.
 2. Run `git status --short`. Python project without `.venv`: `bash scripts/setup-env.sh python`.
-3. Read ONLY the files listed in the step plus direct imports you need.
+3. Do ONLY this step: read and change the files listed in its plan line (plus direct imports you need). No code of later steps.
    - Unfamiliar library API: context7 (see `06-mcp.md`), then the `api-lookup` skill.
    - Changing or renaming a signature: Serena "find referencing symbols" first.
-4. Step larger than 3 files or about 150 lines: split it in `docs/plan.md`, then continue with the first part.
+4. Step larger than 3 files or about 150 lines: split it in `docs/plan.md` (distinct file paths per step), then continue with the first part.
 5. Test first (skill `test-first`): write the test, run it, see it fail for the right reason.
 6. Implement the minimum code to pass. Edit files with tools; never paste code into the chat.
 7. Run `bash scripts/verify.sh` until `VERIFY OK` (max 2 fix attempts, then the debug-loop skill).

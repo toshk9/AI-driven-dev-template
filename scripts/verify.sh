@@ -13,6 +13,8 @@ run() {
   if [ "$s" -ne 0 ]; then echo "FAILED ($s): $*"; rc=1; fi
 }
 
+run bash scripts/check-structure.sh
+
 if [ -f scripts/verify.local.sh ]; then
   run bash scripts/verify.local.sh
 else

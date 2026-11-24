@@ -11,9 +11,9 @@ Load the `project-intake` skill first: it holds the triage rules and the default
    - `memory-bank/projectbrief.md`: what, who, features, out of scope, stack.
    - `.clinerules/10-stack.md`: real commands, layout, conventions.
    - `.clinerules/15-principles.md`: only if the user named principles (SOLID, DDD, 12-factor...). Translate each into 2 to 4 checkable rules for THIS codebase (see the skill).
-   - `docs/decisions.md`: one line per decision, [stated] or [assumed], with a reason.
+   - decisions: one `bash scripts/decide.sh "<decision>" <stated|assumed> "<reason>"` call per decision (stack, layout, every [assumed] default).
    - `docs/spec.md`: S up to 25 lines, M/L up to 80. Goal; users and scenarios; non-goals; acceptance criteria `AC-1`.. (Given / When / Then, each testable); interfaces; constraints.
-   - `docs/plan.md`: small steps, one line each: `- [ ] S01 | goal | files (max 3) | test | AC-n`. S01 is a walking skeleton, then vertical slices. Every AC maps to a step.
+   - `docs/plan.md`: small steps, one line each: `- [ ] S01 | goal | real file paths (max 3, one module per responsibility, see 12-architecture.md) | test | AC-n`. S01 is a walking skeleton, then vertical slices. Every AC maps to a step.
 6. `bash scripts/intake-done.sh "<one-line goal>"`. If it prints INTAKE NOT DONE, do what it says and run it again.
 7. REPORT in at most 10 lines: key decisions, marking each [assumed] one the user may care about.
-   S request: continue straight into step S01. M/L request: ask the user to approve the plan first.
+   S request: continue straight into step S01 and do ONLY S01. M/L request: ask the user to approve the plan first.

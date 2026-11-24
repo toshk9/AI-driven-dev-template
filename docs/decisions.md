@@ -1,3 +1,4 @@
-# Decisions log (append one line per non-obvious choice)
+# Decisions log (append ONLY with: bash scripts/decide.sh "<decision>" <stated|assumed> "<reason>")
 
-Format: `D-n | decision | stated or assumed | reason | revisit if`
+Lines look like: `D-1 | decision | stated or assumed | reason`
+Record: the stack and layout, every new dependency, every architecture choice, every answer the user gave to a question.
