@@ -21,7 +21,27 @@ each step:    api-lookup (if new lib) -> test first -> implement -> verify.sh (i
               -> scripts/finish-step.sh S01 "feat: ..." "next action" ["gotcha"]
 long task:    scripts/finish-step.sh WIP ... -> new task
 ```
-Workflows: `/spec.md` `/plan.md` `/step.md` `/fix.md` `/review.md` `/audit.md` (final deep audit) `/init.md` `/handoff.md` `/mcp-check.md`.
+
+## Workflows (you start them; the model never runs them by itself)
+The normal path needs none of them: the rules in `00-core.md` and the scripts drive intake, steps and finish. A workflow is a ready-made instruction that you start on purpose.
+
+How to start one: type `/` in the Cline input, pick the name (for example `fix.md`), optionally add the task after it (`/fix.md the score is not reset on game over`). Use ACT mode: all of them except `/mcp-check.md` write files.
+
+| Situation | What to do |
+|---|---|
+| New project, first prompt ("Write full working flappy bird game") | Nothing: the model reads `activeContext.md` (`STATE: NEW`) and does the intake itself |
+| Big or detailed request (principles, Docker, several components) | `/spec.md` (a pointer to the `project-intake` skill); a plain prompt is usually enough |
+| Existing repo with code, harness added for the first time | `/init.md` once: fills the memory files from the real stack |
+| The request changed and the plan must be rebuilt | `/plan.md` |
+| Do exactly one next plan step | `/step.md` (otherwise the model goes through the plan continuously) |
+| A bug in something that is already done | `/fix.md <symptom>`: failing test first, then the fix |
+| Look through the diff before merging | `/review.md`, best in a fresh task |
+| Project finished and everything is green | `/audit.md` with reasoning effort at maximum and Max Output Tokens 16000 (see "Final audit") |
+| Context nearly full, continue in a new task | `/handoff.md`, then open a new task |
+| Check that context7 and Serena are visible and working | `/mcp-check.md` |
+
+What happens without your command: for an existing repo with code (`/init.md`) and for a bug (`/fix.md`) `00-core.md` tells the model to read the workflow file itself; if it does not, start it with the slash command. At `PLAN COMPLETE` the model offers `/audit.md`, you start it. Typical session: plain prompt, then play the result, `/fix.md ...` for each defect, then the audit, `/handoff.md` only if a task gets too long.
+
 Skills (loaded on demand): `project-intake`, `api-lookup`, `debug-loop`, `smoke-verify`, `docker-deploy`, `mas-architecture`.
 
 ## Final audit (after PLAN COMPLETE)
