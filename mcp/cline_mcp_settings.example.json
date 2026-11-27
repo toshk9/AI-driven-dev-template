@@ -12,6 +12,7 @@
         "--from", "git+https://github.com/oraios/serena",
         "serena", "start-mcp-server",
         "--context", "ide-assistant",
+        "--add-mode", "no-memories",
         "--project", "/ABS/PATH/TO/YOUR/PROJECT"
       ],
       "disabled": false,

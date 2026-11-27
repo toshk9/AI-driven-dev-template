@@ -7,6 +7,12 @@
 - Tests: unit tests per module + at least one non-mocked wiring/integration test + `scripts/smoke.sh` running the real entrypoint (`verify.sh` calls it automatically).
 - Dependencies: fewest possible; prefer stdlib where sufficient; pin versions in `pyproject.toml` / lockfile.
 
+## Layouts by project kind (inside `src/<pkg>/`; tests mirror them in `tests/`)
+- Service / API: `config.py`, `domain/` (pure models and rules), `adapters/` (DB, HTTP, cache), `api/` (routes, schemas, `/health`), `__main__.py`; `tests/unit/` + `tests/integration/`.
+- MAS / LLM app: `config.py`, `schemas/`, `prompts/`, `tools/`, `agents/`, `orchestrator/` (state and step budget), `llm/` (provider wrapper + fake), `__main__.py`.
+- CLI / library: `config.py`, `core/`, `io/`, `cli.py`, `__main__.py`.
+- Game / GUI: `config.py`, pure entity modules (`bird.py`, `pipes.py`, `collision.py`, `score.py`), `game.py` (state machine, no drawing), `render.py` and `input.py` (framework only), `__main__.py`.
+
 ## Python
 - Version 3.12+. Project-local `.venv` via `scripts/setup-env.sh python`; all commands via `bash scripts/py.sh`. Metadata in `pyproject.toml`.
 - Lint/format: `ruff`. Tests: `pytest`. Type hints on all public functions/models; `mypy` for M/L projects.

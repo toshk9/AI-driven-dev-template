@@ -98,7 +98,7 @@ if [ "$id" != WIP ]; then
   case "$msg" in
     refactor:*|docs:*|chore:*) : ;;
     *) if [ "$srcchanged" = 1 ] && [ "$testchanged" = 0 ]; then
-         gate "$TEST_GATE" "source code changed but no test file changed. Write or extend a test first (skill test-first), then run this command again."
+         gate "$TEST_GATE" "source code changed but no test file changed. Write or extend a test first, then run this command again."
        fi;;
   esac
 
@@ -161,7 +161,7 @@ if [ "${rem_cnt:-0}" -eq 0 ]; then
   if [ ! -f scripts/smoke.sh ] && [ -d src ]; then
     echo "NOTE: no scripts/smoke.sh found. Confirm the real entrypoint runs cleanly end-to-end before calling attempt_completion."
   fi
-  echo "PLAN COMPLETE: every step is done. Confirm all acceptance criteria and smoke checks pass, then call attempt_completion (first line = STEP DONE: $id)."
+  echo "PLAN COMPLETE: every step is done. Confirm all acceptance criteria and smoke checks pass, then call attempt_completion (first line = STEP DONE: $id; last line tells the user: Optional final audit: set reasoning effort to maximum and Max Output Tokens to 16000, then type /audit.md)."
 else
   echo "REMAINING: $rem_cnt step(s). NEXT: $nextstep"
   echo "Do ONLY that step next (its listed files, its test). Continue unless the user asked for a single step."

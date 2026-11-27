@@ -26,6 +26,9 @@ Decide yourself (`DEFAULT`, tag `[assumed]`) for everything else: directory layo
 - **Named principles** (`SOLID`, `clean/hexagonal`, `TDD`, `12-factor`): translate them into checkable rules in `.clinerules/15-principles.md` (max 30 lines). Always add an anti-over-engineering guard (create abstractions only when two implementations exist or a test needs a seam).
 - **Audience / compliance hints** (children, internal team, public internet): apply the Audience section of `defaults.md` and record constraints in `docs/spec.md` / `projectbrief.md`.
 
+## 2b. Size the request
+`S` one small program; `M` one app/service with several features or Docker; `L` multi-component system (MAS, API + DB + workers, deployment, named principles). Questions allowed in the single ask: S up to 1, M up to 3, L up to 5 (0 if nothing is ambiguous).
+
 ## 3. Asking well (at most ONE `ask_followup_question` call)
 Put in the question text:
 1. One line restating the product goal.
@@ -33,7 +36,10 @@ Put in the question text:
 3. The BLOCKER question(s) (1 for S, <= 3 for M, <= 5 for L).
 Options: `"Accept defaults (recommended)"` first, then 2–3 concrete alternatives with a brief tradeoff each.
 
-## 4. Plan & Memory rules
+## 4. Write (no more questions), whole files with `write_to_file`
+`memory-bank/projectbrief.md` (max 20 lines), `.clinerules/10-stack.md` (real commands, layout, conventions), `.clinerules/15-principles.md` only if principles were named, `docs/spec.md` (M/L only: goal, scenarios, non-goals, `AC-1..` as Given/When/Then, constraints), `docs/plan.md`. Docker requested: add a dedicated Docker step. Then report in <= 10 lines. S: continue into `S01`. M/L: ask the user to approve the plan before product code.
+
+## 5. Plan & Memory rules
 - Record stack, layout, and key `[assumed]` / `[stated]` choices via `bash scripts/decide.sh "<decision>" <stated|assumed> "<reason>"`.
 - `docs/plan.md`: `S01` MUST be a walking skeleton (thin entry point + passing test + `scripts/smoke.sh`). Final step MUST be an end-to-end integration & `scripts/smoke.sh` acceptance check across `AC-all`.
 - Write memory files whole (`write_to_file`), never leave `{{...}}` placeholders, and close with `bash scripts/intake-done.sh "<one-line goal>"`.

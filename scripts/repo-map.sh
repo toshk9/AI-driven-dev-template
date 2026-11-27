@@ -1,93 +1,76 @@
 #!/usr/bin/env bash
-# Generates a compact map of the repo so the model can locate files and symbols without reading many files.
-# Output is size-capped on purpose (context is expensive for a local model).
+# Compact map of the PROJECT (not of the harness) so the model can locate files and symbols in ONE read.
+# One line per file, public symbols only, hard size cap (context is expensive for a local model).
 set -u
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 mkdir -p memory-bank
 out=memory-bank/repo-map.md
+MAX_FILES=80; MAX_SYMBOL_FILES=60
 
-list_files() {
-  local files
-  files="$(git ls-files -co --exclude-standard 2>/dev/null || true)"
-  if [ -z "$files" ]; then
-    find . -maxdepth 4 -type f \
-      ! -path '*/.git/*' ! -path '*/.venv/*' ! -path '*/venv/*' ! -path '*/node_modules/*' \
-      ! -path '*/__pycache__/*' ! -path '*/*.egg-info/*' \
-      | sed 's|^\./||' | sort | head -n 300
-  else
-    printf '%s\n' "$files" \
-      | grep -Ev '(\.lock$|-lock\.|\.min\.|\.svg$|\.png$|\.jpe?g$|\.gif$|\.ico$|\.woff2?$|\.egg-info/|^(\.venv|venv|node_modules|__pycache__|dist|build)/)' \
-      | sort | head -n 300
-  fi
-}
+# Harness files are not part of the project: skip them.
+SKIP='^(\.clinerules|\.cline|\.vscode|\.githooks|mcp|memory-bank)/|^scripts/(check-structure\.sh|decide\.sh|finish-step\.sh|gates\.conf|intake-done\.sh|py\.sh|repo-map\.sh|setup-env\.sh|verify\.sh|verify\.local\.sh)$|^docs/(decisions|plan)\.md$|^\.(gitignore|gitattributes|clineignore|structure-ignore|editorconfig)$|\.lock$|-lock\.|\.min\.|\.(svg|png|jpe?g|gif|ico|woff2?|wav|mp3|ogg|ttf)$|(^|/)(\.venv|venv|node_modules|__pycache__|dist|build|[^/]*\.egg-info)/'
+
+files="$( { git ls-files -co --exclude-standard 2>/dev/null || find . -maxdepth 4 -type f | sed 's|^\./||'; } | grep -Ev "$SKIP" | sort )"
 
 python_cmd() {
-  if bash scripts/py.sh -c "pass" >/dev/null 2>&1; then
-    echo "bash scripts/py.sh"
-  elif command -v python3 >/dev/null 2>&1; then
-    echo "python3"
-  elif command -v python >/dev/null 2>&1; then
-    echo "python"
-  fi
+  for c in "bash scripts/py.sh" python3 python; do
+    $c -c "pass" >/dev/null 2>&1 && { echo "$c"; return; }
+  done
 }
 
 {
-  echo "# Repo map (generated $(date +%F); do not edit by hand)"
+  echo "# Repo map (generated $(date +%F); do not edit by hand; project files only)"
   echo
-  echo "## Files"
+  echo "## Files (lines)"
   echo '```'
-  file_list="$(list_files)"
-  printf '%s\n' "$file_list"
+  n=0
+  printf '%s\n' "$files" | while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    [ -f "$f" ] || continue
+    n=$((n+1)); [ "$n" -gt "$MAX_FILES" ] && { echo "... more files (use list_files)"; break; }
+    echo "$f ($(wc -l < "$f" | tr -d ' '))"
+  done
   echo '```'
-  if command -v ctags >/dev/null 2>&1; then
-    echo
-    echo "## Symbols (file:line name kind)"
-    echo '```'
-    printf '%s\n' "$file_list" | ctags -L - -x 2>/dev/null | awk '{print $4 ":" $3 " " $1 " " $2}' | head -n 350
-    echo '```'
-  else
-    pybin="$(python_cmd || true)"
-    if [ -n "$pybin" ]; then
-      echo
-      echo "## Python Symbols (file:line kind signature)"
-      echo '```'
-      printf '%s\n' "$file_list" | grep -E '\.py$' | $pybin -c '
+  echo
+  echo "## Public symbols (one line per file)"
+  echo '```'
+  pybin="$(python_cmd || true)"
+  if [ -n "$pybin" ]; then
+    printf '%s\n' "$files" | grep -E '\.py$' | grep -Ev '(^|/)__init__\.py$' | $pybin -c '
 import ast, sys
-count = 0
+MAXF = int(sys.argv[1]); shown = 0
 for raw in sys.stdin:
     path = raw.strip()
     if not path:
         continue
     try:
-        with open(path, "r", encoding="utf-8") as fh:
-            tree = ast.parse(fh.read(), filename=path)
+        tree = ast.parse(open(path, encoding="utf-8").read(), filename=path)
     except Exception:
         continue
-    sep = chr(44) + " "
+    parts = []
     for node in tree.body:
-        if isinstance(node, ast.ClassDef):
-            print(f"{path}:{node.lineno} class {node.name}")
-            count += 1
-            for sub in node.body:
-                if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    sig = sep.join(a.arg for a in sub.args.args)
-                    print(f"{path}:{sub.lineno}   def {node.name}.{sub.name}({sig})")
-                    count += 1
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            sig = sep.join(a.arg for a in node.args.args)
-            print(f"{path}:{node.lineno} def {node.name}({sig})")
-            count += 1
-        if count >= 350:
-            break
-    if count >= 350:
+        if isinstance(node, ast.ClassDef) and not node.name.startswith("_"):
+            ms = [s.name for s in node.body
+                  if isinstance(s, (ast.FunctionDef, ast.AsyncFunctionDef)) and not s.name.startswith("_")]
+            parts.append("class %s(%s)" % (node.name, ", ".join(ms)) if ms else "class %s" % node.name)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith("_"):
+            parts.append("def %s" % node.name)
+    if not parts:
+        continue
+    if "/tests/" in "/" + path or path.startswith("tests/"):
+        parts = [p for p in parts if p.startswith("class")] or ["%d test functions" % sum(1 for p in parts if p.startswith("def"))]
+    shown += 1
+    if shown > MAXF:
+        print("... more files (use get_symbols_overview)")
         break
-' 2>/dev/null
-      echo '```'
-    else
-      echo
-      echo "_(install universal-ctags or Python to include a symbol index)_"
-    fi
+    print((path + ": " + "; ".join(parts))[:240])
+' "$MAX_SYMBOL_FILES" 2>/dev/null
   fi
+  if command -v ctags >/dev/null 2>&1; then
+    printf '%s\n' "$files" | grep -Ev '\.py$' | ctags -L - -x --kinds-all='*' 2>/dev/null \
+      | awk '$2=="function"||$2=="class"||$2=="method"||$2=="interface"{a[$4]=a[$4] (a[$4]?", ":"") $1} END{for(f in a) print substr(f ": " a[f],1,240)}' | sort | head -n 40
+  fi
+  echo '```'
 } > "$out"
 
 echo "wrote $out ($(wc -l < "$out") lines)"

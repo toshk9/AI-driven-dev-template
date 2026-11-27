@@ -7,7 +7,7 @@
    - Unfamiliar 3rd-party library API: run `api-lookup` (installed version + `context7` / `help()`). Never guess APIs or coordinate systems.
    - Changing or renaming a signature: Serena `find_referencing_symbols` first.
 4. Step larger than 3 files or ~150 lines? Split it in `docs/plan.md` first (distinct file paths per step), then continue with part 1.
-5. Test first (`test-first` skill): write the test, run it, see it fail for the right reason.
+5. Write the step's test together with the code (bug fix: failing test first).
 6. Implement the minimum code to pass. Keep modules <= 250 lines (`12-architecture.md`). Never paste code into chat as the answer.
 7. Ensure real wiring/smoke check works (`scripts/smoke.sh` if present or integration test), then run `bash scripts/verify.sh` until `VERIFY OK` (max 2 fix tries, then `debug-loop` skill).
 8. Dependency, entry point, or directory added? Rewrite `memory-bank/techContext.md` (`write_to_file`, max 30 lines), and record new deps via `bash scripts/decide.sh`.

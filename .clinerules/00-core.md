@@ -1,59 +1,46 @@
-# Core rules for Qwen3.6-35B + Cline. Obey in this order. MEMORY FIRST.
+# Core rules (Qwen3.6 + Cline). MEMORY FIRST. One tool call per message.
 
-Language: reply in the user's language (English if unclear). Code, comments, commits, docs, memory files: English.
+Reply in the user's language (English if unclear). Code, comments, commits, docs, memory files: English.
 
-## 0. BOOT: your FIRST tool call in EVERY task (before Serena, before anything else)
+## 0. BOOT: first tool call of EVERY task, and again after any context summary or truncation
 `read_file memory-bank/activeContext.md`, then act on its FIRST line:
-- `STATE: NEW`: new project. Do INTAKE (section 1). No product code before `INTAKE DONE`.
-  (Existing repo with source code? `read_file .clinerules/workflows/init.md` and follow it instead.)
-- `STATE: ACTIVE`: `read_file docs/plan.md`, then follow "Next action".
-  New feature or change? Add step lines to `docs/plan.md` BEFORE coding. Bug? Follow `.clinerules/workflows/fix.md`.
-- Question or explanation only (no file edits): read memory, answer, skip sections 1 and 2.
-COMPACTION / UNCERTAINTY: whenever context starts with a SUMMARY of earlier work, re-read `memory-bank/activeContext.md`, `docs/plan.md`, `docs/decisions.md`, `memory-bank/repo-map.md`, and run `git status --short`. Trust files over the summary.
-If you keep a checklist, its LAST item is always `scripts/finish-step.sh`.
+- `STATE: NEW`: new project, do INTAKE (section 1). No product code before `INTAKE DONE`.
+  Existing repo with source code: `read_file .clinerules/workflows/init.md` and follow it instead.
+- `STATE: ACTIVE`: follow "Next action". Read `docs/plan.md` only to pick or change a step.
+  New feature: add step lines to `docs/plan.md` BEFORE coding. Bug: `.clinerules/workflows/fix.md`.
+- Question only (no edits): read memory, answer, skip sections 1 and 2.
+After a summary or "history removed" notice: also `read_file memory-bank/repo-map.md` (all files and symbols in one read), and trust the files over your memory of the chat.
 
-## 1. INTAKE (STATE: NEW): memory before code. One tool call per message.
-1. `read_file .cline/skills/project-intake/SKILL.md` FIRST to triage what to ask vs decide by default.
-2. INTERVIEW (at most ONE `ask_followup_question` call total):
-   - Detailed / multi-feature / constrained request (M/L: principles like SOLID, audience, Docker/deploy, MAS, web services): `read_file .clinerules/workflows/spec.md` and follow it.
-   - Simple / small request (S): if stack, UI kind, or a core behavior is genuinely ambiguous (BLOCKER), ask ONE question (recommended bundle first, `"Accept defaults"` option). If clear, ask 0 questions.
-3. WRITE (whole files via `write_to_file`):
-   - `memory-bank/projectbrief.md` (max 20 lines): what, who, features, out of scope, stack.
-   - `.clinerules/10-stack.md`: REAL run / test / lint commands, package layout, conventions.
-   - `docs/plan.md`: 4–9 steps, `- [ ] S01 | goal | real file paths (max 3) | test | AC-n`.
-     One module per responsibility (`12-architecture.md`). `S01` = walking skeleton (thin entry point + passing test + `scripts/smoke.sh`). Final step = end-to-end integration/smoke & acceptance check.
-4. DECISIONS: `bash scripts/decide.sh "<decision>" <stated|assumed> "<reason>"` for stack, layout, and key `[assumed]` defaults.
-5. CLOSE INTAKE: `bash scripts/intake-done.sh "<one-line goal>"`. Fix any `INTAKE NOT DONE` error and re-run. Only after `INTAKE DONE` write product code.
+## 1. INTAKE (STATE: NEW)
+1. `read_file .cline/skills/project-intake/SKILL.md`: it holds the whole procedure (size, triage, ask, write).
+2. At most ONE `ask_followup_question` in total (recommended bundle first, "Accept defaults" option). Ask 0 if nothing is ambiguous.
+3. Write whole files with `write_to_file`: `memory-bank/projectbrief.md`, `.clinerules/10-stack.md`, `docs/plan.md`.
+   Plan line: `- [ ] S01 | goal | real file paths (max 3) | test | AC-n`. S01 = walking skeleton; last step = end-to-end check.
+4. `bash scripts/decide.sh "<decision>" <stated|assumed> "<reason>"` for stack, layout, key assumptions.
+5. `bash scripts/intake-done.sh "<one-line goal>"`. On `INTAKE NOT DONE`: fix and re-run.
 
-## 2. THE LOOP: ONE plan step at a time
-1. Do ONLY the current step: its listed files, its behavior, its test. NEVER write code for later steps.
-   One `write_to_file` call: <= ~150 lines. Source files <= 250 lines (`12-architecture.md`).
-2. Before using any 3rd-party library not yet verified in this repo: run `api-lookup` (check installed version in `.venv` + `context7` / `help()`). Never guess APIs or coordinate systems from memory.
-3. TEST FIRST (`test-first` skill): write test -> run -> see it fail -> implement minimum to pass -> verify real integration/smoke path (`bash scripts/verify.sh`).
-4. FINISH with ONE command and wait:
-   `bash scripts/finish-step.sh S01 "feat: S01 short summary" "next concrete action" ["gotcha worth remembering"]`
-   Fix any `STEP NOT DONE` error and re-run. Never run `git commit` by hand.
-5. After `STEP DONE`, continue with `NEXT` one step at a time (unless user asked for a single step).
-   At `PLAN COMPLETE`: confirm all ACs and `scripts/smoke.sh` passed, then call `attempt_completion`; its FIRST line must be the `STEP DONE: ...` line from the script.
-6. Long context (~25 tool calls) or blocked: `bash scripts/finish-step.sh WIP "wip: summary" "next action" "open problem"`, then ask user to open a new task.
+## 2. LOOP: ONE plan step at a time
+1. Do ONLY the current step: its files, its test. Never write code of later steps. One `write_to_file` <= ~150 lines.
+2. EDITING: a NEW file: `write_to_file` (<= ~150 lines). An EXISTING source or test file: never rewrite it whole. Change only the lines you need:
+   - one function or method: Serena `replace_symbol_body` (you output only that function), or `insert_after_symbol` to add one;
+   - a few lines: `replace_in_file` with 1-3 small SEARCH blocks (3-6 lines each) copied exactly from the latest `read_file`.
+   `replace_in_file` failed once: `read_file` that region again and retry with a smaller block. A whole-file rewrite is allowed only when more than half of the file changes, or for memory files.
+3. New 3rd-party library? `api-lookup` skill first (installed version + context7). Never guess APIs.
+4. Write the test and the code, run the step's test, then `bash scripts/verify.sh` until `VERIFY OK`.
+   Bug fixes: the failing test comes first, and you must see it fail.
+5. FINISH with one command and wait for its output:
+   `bash scripts/finish-step.sh S01 "feat: S01 summary" "next concrete action" ["gotcha"]`
+   On `STEP NOT DONE`: fix what it says, re-run. Never `git commit` by hand.
+6. After `STEP DONE` do the `NEXT` step, unless the user asked for one step.
+   At `PLAN COMPLETE` call `attempt_completion`; its first line is the `STEP DONE: ...` line, its last line offers the final audit (`/audit.md`) as the script says.
+7. About 25 tool calls in one task, or blocked: `bash scripts/finish-step.sh WIP "wip: summary" "next action" "open problem"`, then ask the user to open a new task.
 
-## 3. Clarifications during work (`ask_followup_question`, max 1 per step, 2–4 options, recommended first)
-Ask when: a new dependency is needed, a design fork changes later steps or external behavior, or a requirement is ambiguous.
-Record the answer: `bash scripts/decide.sh "<choice>" stated "<what the user said>"`.
-Never ask about naming, test style, formatting, or anything already in `docs/decisions.md` or `10-stack.md`.
+## 3. Questions during work (max 1 per step, 2-4 options, recommended first)
+Only for: a new dependency, a design fork that changes later steps, an ambiguous requirement.
+Record the answer with `decide.sh ... stated`. Never ask about naming, formatting, or what `docs/decisions.md` / `10-stack.md` already say.
 
-## 4. Memory files
-- Rewrite small memory files whole with `write_to_file` (never `replace_in_file`).
-- `activeContext.md` is script-owned (updated via `finish-step.sh`).
-- `repo-map.md` is auto-generated by `intake-done.sh` / `finish-step.sh`; read it to locate files/symbols, never edit it by hand.
-- `docs/decisions.md` via `scripts/decide.sh` only. Update `techContext.md` before first `finish-step.sh` and whenever deps, entry points, or directories change.
-
-## 5. Tools & Safety (details in `05-env-git.md` and `06-mcp.md`)
-- Always use forward slashes `/` in paths and bash commands (never `\`, which Git Bash mangles). Prefer `write_to_file` over `mkdir` in bash.
-- Existing code: `memory-bank/repo-map.md` + Serena (`get_symbols_overview`, `find_symbol`, `find_referencing_symbols`) before `read_file`. Unfamiliar library: `api-lookup` / `context7`.
-- Never use Serena `write_memory` / `read_memory` / `onboarding`: project memory is `memory-bank/`.
-- Python: always `bash scripts/py.sh ...`, never bare `python` / `pip` / `pytest`.
-- Same command failed twice: STOP, write 3 hypotheses (`debug-loop` skill), change something structural before trying again.
-- Never add dependencies, run destructive git/shell commands, or expose secrets without user approval.
-
-REMEMBER: first action = read `memory-bank/activeContext.md`. Last action = `scripts/finish-step.sh`. One step at a time. Nothing is done until `STEP DONE` and `verify.sh` (including `smoke.sh`) pass.
+## 4. Memory and tools
+- Small memory files: rewrite whole with `write_to_file`, never `replace_in_file`. `activeContext.md` and `repo-map.md` are script-owned. `docs/decisions.md` only via `decide.sh`.
+- Update `techContext.md` before the first finish-step and whenever dependencies, entry points or directories change.
+- Env, git, Python wrapper: `05-env-git.md`. MCP: `06-mcp.md`. Same command failed twice: `debug-loop` skill.
+- Never add dependencies, run destructive commands, or expose secrets without user approval.

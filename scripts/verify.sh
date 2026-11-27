@@ -6,11 +6,19 @@ set -u
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
 rc=0
+t_all=$SECONDS
+# Success prints only the last 4 lines (context is expensive); failure prints the last 60. Every step shows its duration.
 run() {
   echo "> $*"
-  "$@" 2>&1 | tail -n 60
-  local s=${PIPESTATUS[0]}
-  if [ "$s" -ne 0 ]; then echo "FAILED ($s): $*"; rc=1; fi
+  local t0=$SECONDS out s
+  out="$("$@" 2>&1)"; s=$?
+  if [ "$s" -ne 0 ]; then
+    printf '%s\n' "$out" | tail -n 60
+    echo "FAILED ($s, $((SECONDS-t0))s): $*"; rc=1
+  else
+    printf '%s\n' "$out" | tail -n 4
+    echo "ok ($((SECONDS-t0))s)"
+  fi
 }
 
 run bash scripts/check-structure.sh
@@ -62,5 +70,5 @@ if [ -f scripts/smoke.sh ]; then
   run bash scripts/smoke.sh
 fi
 
-if [ "$rc" -eq 0 ]; then echo "VERIFY OK"; else echo "VERIFY FAILED"; fi
+if [ "$rc" -eq 0 ]; then echo "VERIFY OK ($((SECONDS-t_all))s)"; else echo "VERIFY FAILED ($((SECONDS-t_all))s)"; fi
 exit "$rc"
