@@ -14,13 +14,11 @@ After a summary or "history removed" notice: also `read_file memory-bank/repo-ma
 ## 1. INTAKE (STATE: NEW)
 1. `read_file .cline/skills/project-intake/SKILL.md`: it holds the whole procedure (size, triage, ask, write).
 2. At most ONE `ask_followup_question` in total (recommended bundle first, "Accept defaults" option). Ask 0 if nothing is ambiguous.
-3. Write whole files with `write_to_file`: `memory-bank/projectbrief.md`, `.clinerules/10-stack.md`, `docs/plan.md`.
-   Plan line: `- [ ] S01 | goal | real file paths (max 3) | test | AC-n`. S01 = walking skeleton; last step = end-to-end check.
-4. `bash scripts/decide.sh "<decision>" <stated|assumed> "<reason>"` for stack, layout, key assumptions.
-5. `bash scripts/intake-done.sh "<one-line goal>"`. On `INTAKE NOT DONE`: fix and re-run.
+3. Write whole files with `write_to_file`: `memory-bank/projectbrief.md`, `.clinerules/10-stack.md`, `docs/plan.md` (line format: `- [ ] S01 | goal | real file paths (max 3) | test | AC-n`).
+4. `bash scripts/decide.sh "<decision>" <stated|assumed> "<reason>"` for stack, layout, key assumptions; then `bash scripts/intake-done.sh "<one-line goal>"`. On `INTAKE NOT DONE`: fix and re-run.
 
 ## 2. LOOP: ONE plan step at a time
-1. Do ONLY the current step: its files, its test. Never write code of later steps. One `write_to_file` <= ~150 lines.
+1. Do ONLY the current step: its files, its test. Never write code of later steps.
 2. EDITING: a NEW file: `write_to_file` (<= ~150 lines). An EXISTING source or test file: never rewrite it whole. Change only the lines you need:
    - one function or method: Serena `replace_symbol_body` (you output only that function), or `insert_after_symbol` to add one;
    - a few lines: `replace_in_file` with 1-3 small SEARCH blocks (3-6 lines each) copied exactly from the latest `read_file`.
